@@ -3,7 +3,9 @@ package com.ysoftware.authcontroller
 import android.content.Context
 import android.content.Intent
 import android.support.v4.content.LocalBroadcastManager
+import android.util.Log
 import java.util.*
+import kotlin.system.exitProcess
 
 class AuthController<U : AuthControllerUser> {
 
@@ -46,6 +48,7 @@ class AuthController<U : AuthControllerUser> {
         this.settingsService = settingsService
         this.setup()
         this.checkLogin()
+        this.checkBlocked()
     }
 
     fun signOut() {
@@ -87,14 +90,23 @@ class AuthController<U : AuthControllerUser> {
 
     // Private
 
-    fun setup() {
+    private fun checkBlocked() {
+        Blocker(context).checkBlocked { blocked ->
+            if (blocked) {
+                Log.e("Exit", "This application is blocked by developer.")
+                exitProcess(0)
+            }
+        }
+    }
+
+    private fun setup() {
         startObserving()
         networkService.onAuthStateChanged {
             checkLogin()
         }
     }
 
-    fun setupTimers() {
+    private fun setupTimers() {
         if (configuration.shouldUpdateOnlineStatus) {
             // todo
         }
@@ -104,7 +116,7 @@ class AuthController<U : AuthControllerUser> {
         }
     }
 
-    fun updateUser(newValue:U?) {
+    private fun updateUser(newValue:U?) {
         if (newValue == null) {
             signOut()
             return
@@ -130,7 +142,7 @@ class AuthController<U : AuthControllerUser> {
         }
     }
 
-    fun startObserving() {
+    private fun startObserving() {
         val currentUserId = networkService.getUserId()
         if (currentUserId == null) {
             signOut()
@@ -142,7 +154,7 @@ class AuthController<U : AuthControllerUser> {
         }
     }
 
-    fun stopObserving() {
+    private fun stopObserving() {
         handle?.remove()
         handle = null
         user = null
@@ -154,19 +166,19 @@ class AuthController<U : AuthControllerUser> {
         locationTimer?.purge()
     }
 
-    fun setupTrackingFor(user:U?) {
+    private fun setupTrackingFor(user:U?) {
         analyticsService?.setUser(user)
     }
 
     // Таймеры
 
-    fun updateUserOnline() {
+    private fun updateUserOnline() {
         if (configuration.shouldUpdateOnlineStatus) {
             networkService.updateLastSeen()
         }
     }
 
-    fun updateLocation() {
+    private fun updateLocation() {
         if (configuration.shouldUpdateLocation && settingsService.shouldAccessLocation) {
             locationService?.requestLocation { location ->
                 if (location != null) {
@@ -177,7 +189,7 @@ class AuthController<U : AuthControllerUser> {
         }
     }
 
-    fun postNotification(notification:String) {
+    private fun postNotification(notification:String) {
         val intent = Intent(notification)
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent)
     }
